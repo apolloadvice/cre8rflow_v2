@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/tooltip";
 import { usePanelStore } from "@/stores/panel-store";
 import { useMediaPanelStore } from "../store";
+import { IndexingStatusBadge } from "@/components/ui/indexing-status";
 
 function MediaItemWithContextMenu({
   item,
@@ -229,22 +230,43 @@ export function MediaView() {
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
                 <Video className="h-6 w-6 text-white drop-shadow-md" />
               </div>
+              {/* Duration badge */}
               {item.duration && (
                 <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
                   {formatDuration(item.duration)}
+                </div>
+              )}
+              {/* Indexing status badge */}
+              {item.indexingStatus && (
+                <div className="absolute top-1 right-1">
+                  <IndexingStatusBadge
+                    status={item.indexingStatus}
+                    error={item.indexingError}
+                    className="text-[10px] px-1"
+                  />
                 </div>
               )}
             </div>
           );
         } else {
           preview = (
-            <div className="w-full h-full bg-muted/30 flex flex-col items-center justify-center text-muted-foreground rounded">
+            <div className="relative w-full h-full bg-muted/30 flex flex-col items-center justify-center text-muted-foreground rounded">
               <Video className="h-6 w-6 mb-1" />
               <span className="text-xs">Video</span>
               {item.duration && (
                 <span className="text-xs opacity-70">
                   {formatDuration(item.duration)}
                 </span>
+              )}
+              {/* Indexing status badge for videos without thumbnails */}
+              {item.indexingStatus && (
+                <div className="absolute top-1 right-1">
+                  <IndexingStatusBadge
+                    status={item.indexingStatus}
+                    error={item.indexingError}
+                    className="text-[10px] px-1"
+                  />
+                </div>
               )}
             </div>
           );

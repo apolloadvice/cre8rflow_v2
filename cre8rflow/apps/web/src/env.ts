@@ -24,6 +24,8 @@ export const env = createEnv({
     R2_BUCKET_NAME: z.string(),
     // Modal transcription
     MODAL_TRANSCRIPTION_URL: z.string(),
+    // Twelve Labs
+    TWELVELABS_API_KEY: z.string(),
   },
   client: {},
   runtimeEnv: {
@@ -41,5 +43,7 @@ export const env = createEnv({
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
     // Modal transcription
     MODAL_TRANSCRIPTION_URL: process.env.MODAL_TRANSCRIPTION_URL,
+    // Twelve Labs
+    TWELVELABS_API_KEY: process.env.TWELVELABS_API_KEY,
   },
 });

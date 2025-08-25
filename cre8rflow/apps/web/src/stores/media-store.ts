@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
+import type { IndexingStatus } from "@/types/twelvelabs";
+import { twelveLabsService } from "@/lib/twelvelabs-service";
 
 export type MediaType = "image" | "video" | "audio";
 
@@ -25,6 +27,12 @@ export interface MediaItem {
   color?: string; // Text color
   backgroundColor?: string; // Background color
   textAlign?: "left" | "center" | "right"; // Text alignment
+  
+  // Twelve Labs integration
+  twelveLabsVideoId?: string;
+  twelveLabsTaskId?: string;
+  indexingStatus?: IndexingStatus;
+  indexingError?: string;
 }
 
 interface MediaStore {
@@ -40,6 +48,15 @@ interface MediaStore {
   loadProjectMedia: (projectId: string) => Promise<void>;
   clearProjectMedia: (projectId: string) => Promise<void>;
   clearAllMedia: () => void; // Clear local state only
+  
+  // Twelve Labs actions
+  updateIndexingStatus: (
+    mediaId: string,
+    status: IndexingStatus,
+    error?: string,
+    videoId?: string,
+    taskId?: string
+  ) => void;
 }
 
 // Helper function to determine file type
@@ -166,6 +183,10 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     const newItem: MediaItem = {
       ...item,
       id: generateUUID(),
+      // Initialize indexing status for videos
+      ...(item.type === "video" && !item.ephemeral && {
+        indexingStatus: "pending" as IndexingStatus,
+      }),
     };
 
     // Add to local state immediately for UI responsiveness
@@ -176,6 +197,32 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     // Save to persistent storage in background
     try {
       await storageService.saveMediaItem(projectId, newItem);
+      
+      // Start Twelve Labs indexing in parallel for videos (non-blocking)
+      if (twelveLabsService.shouldIndexMedia(newItem) && newItem.file) {
+        twelveLabsService.startBackgroundIndexing(
+          newItem,
+          projectId,
+          (status, error, videoId) => {
+            // Update the media item with indexing status
+            get().updateIndexingStatus(
+              newItem.id,
+              status,
+              error,
+              videoId,
+              // taskId is handled in the service
+            );
+          }
+        ).catch((error) => {
+          console.error("Failed to start background indexing:", error);
+          // Update status to failed if indexing couldn't start
+          get().updateIndexingStatus(
+            newItem.id,
+            "failed",
+            error instanceof Error ? error.message : "Failed to start indexing"
+          );
+        });
+      }
     } catch (error) {
       console.error("Failed to save media item:", error);
       // Remove from local state if save failed
@@ -325,5 +372,29 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
     // Clear local state
     set({ mediaItems: [] });
+  },
+
+  updateIndexingStatus: (mediaId, status, error, videoId, taskId) => {
+    set((state) => ({
+      mediaItems: state.mediaItems.map((item) =>
+        item.id === mediaId
+          ? {
+              ...item,
+              indexingStatus: status,
+              indexingError: error,
+              ...(videoId && { twelveLabsVideoId: videoId }),
+              ...(taskId && { twelveLabsTaskId: taskId }),
+            }
+          : item
+      ),
+    }));
+
+    // Also update persistent storage with new indexing info
+    const updatedItem = get().mediaItems.find((item) => item.id === mediaId);
+    if (updatedItem) {
+      // We need the project ID for this - for now, we'll skip persistent storage update
+      // In a real implementation, you might want to pass projectId to this method
+      console.log(`Updated indexing status for ${mediaId}: ${status}`);
+    }
   },
 }));

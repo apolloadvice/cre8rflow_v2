@@ -38,7 +38,7 @@ WORKDIR /app/apps/web
 RUN bun run build
 
 # Production image
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -61,5 +61,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 
-CMD ["bun", "apps/web/server.js"]
+CMD ["node", "apps/web/server.js"]
 

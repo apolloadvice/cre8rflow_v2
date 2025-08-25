@@ -59,6 +59,7 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://opencut:opencutthegoat@db:5432/opencut
+      - NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3100
       - BETTER_AUTH_URL=http://localhost:3000
       - BETTER_AUTH_SECRET=your-production-secret-key-here
       - UPSTASH_REDIS_REST_URL=http://serverless-redis-http:80
@@ -71,6 +72,7 @@ services:
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
       - R2_BUCKET_NAME=${R2_BUCKET_NAME}
       - MODAL_TRANSCRIPTION_URL=${MODAL_TRANSCRIPTION_URL}
+      - TWELVELABS_API_KEY=tlk_26YN0JY0HC8GYS2R3CQ4V19YQ956
     depends_on:
       db:
         condition: service_healthy
