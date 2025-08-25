@@ -13,6 +13,9 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    // Supabase (server-only)
+    SUPABASE_URL: z.string().url(),
+    SUPABASE_SERVICE_KEY: z.string(),
     UPSTASH_REDIS_REST_URL: z.string().url(),
     UPSTASH_REDIS_REST_TOKEN: z.string(),
     FREESOUND_CLIENT_ID: z.string(),
@@ -26,12 +29,17 @@ export const env = createEnv({
     MODAL_TRANSCRIPTION_URL: z.string(),
     // Twelve Labs
     TWELVELABS_API_KEY: z.string(),
+    // Temporary bypass for testing
+    BYPASS_AUTH_FOR_TESTING: z.string().optional(),
   },
   client: {},
   runtimeEnv: {
     ANALYZE: process.env.ANALYZE,
     NEXT_RUNTIME: process.env.NEXT_RUNTIME,
     NODE_ENV: process.env.NODE_ENV,
+    // Supabase (server-only)
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     FREESOUND_CLIENT_ID: process.env.FREESOUND_CLIENT_ID,
@@ -45,5 +53,7 @@ export const env = createEnv({
     MODAL_TRANSCRIPTION_URL: process.env.MODAL_TRANSCRIPTION_URL,
     // Twelve Labs
     TWELVELABS_API_KEY: process.env.TWELVELABS_API_KEY,
+    // Temporary bypass for testing
+    BYPASS_AUTH_FOR_TESTING: process.env.BYPASS_AUTH_FOR_TESTING,
   },
 });

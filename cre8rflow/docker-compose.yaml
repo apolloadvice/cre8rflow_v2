@@ -62,6 +62,9 @@ services:
       - NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3100
       - BETTER_AUTH_URL=http://localhost:3000
       - BETTER_AUTH_SECRET=your-production-secret-key-here
+      # Supabase (server-only)
+      - SUPABASE_URL=https://ziciawlkxgmwrfajimhy.supabase.co
+      - SUPABASE_SERVICE_KEY=sb_secret_QJ4NFvo6ce1fLlLfviBhQQ_rMCrIrdy
       - UPSTASH_REDIS_REST_URL=http://serverless-redis-http:80
       - UPSTASH_REDIS_REST_TOKEN=example_token
       - FREESOUND_CLIENT_ID=${FREESOUND_CLIENT_ID}
@@ -73,6 +76,8 @@ services:
       - R2_BUCKET_NAME=${R2_BUCKET_NAME}
       - MODAL_TRANSCRIPTION_URL=${MODAL_TRANSCRIPTION_URL}
       - TWELVELABS_API_KEY=tlk_26YN0JY0HC8GYS2R3CQ4V19YQ956
+      # Temporary flag to bypass auth for TwelveLabs testing
+      - BYPASS_AUTH_FOR_TESTING=true
     depends_on:
       db:
         condition: service_healthy

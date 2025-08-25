@@ -30,6 +30,14 @@ ENV BETTER_AUTH_SECRET="build-time-secret"
 ENV UPSTASH_REDIS_REST_URL="http://localhost:8079"
 ENV UPSTASH_REDIS_REST_TOKEN="example_token"
 ENV NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+ENV SUPABASE_URL="https://example.supabase.co"
+ENV SUPABASE_SERVICE_KEY="build-time-key"
+ENV R2_ACCESS_KEY_ID="build-time-access-key"
+ENV R2_SECRET_ACCESS_KEY="build-time-secret-key"
+ENV CLOUDFLARE_ACCOUNT_ID="build-time-account-id"
+ENV R2_BUCKET_NAME="build-time-bucket"
+ENV MODAL_TRANSCRIPTION_URL="https://example.modal.run"
+ENV TWELVELABS_API_KEY="build-time-api-key"
 
 ENV FREESOUND_CLIENT_ID=$FREESOUND_CLIENT_ID
 ENV FREESOUND_API_KEY=$FREESOUND_API_KEY

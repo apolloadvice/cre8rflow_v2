@@ -114,6 +114,13 @@ Before you begin, ensure you have the following installed on your system:
    UPSTASH_REDIS_REST_URL="http://localhost:8079"
    UPSTASH_REDIS_REST_TOKEN="example_token"
 
+   # Supabase (server-only)
+   SUPABASE_URL="https://ziciawlkxgmwrfajimhy.supabase.co"
+   SUPABASE_SERVICE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppY2lhd2xreGdtd3JmYWppbWh5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjA4NjkzNywiZXhwIjoyMDcxNjYyOTM3fQ.mUIJyrXvRIsddlZAQ_6OjBy8wYiozLlObEl8TbcfUDk"
+
+   # TwelveLabs
+   TWELVELABS_API_KEY="tlk_26YN0JY0HC8GYS2R3CQ4V19YQ956"
+
    # Marble Blog
    MARBLE_WORKSPACE_KEY=cm6ytuq9x0000i803v0isidst # example organization key
    NEXT_PUBLIC_MARBLE_API_URL=https://api.marblecms.com
@@ -141,6 +148,30 @@ Before you begin, ensure you have the following installed on your system:
 6. Start the development server: `bun run dev` from (inside apps/web)
 
 The application will be available at [http://localhost:3000](http://localhost:3000).
+
+## TwelveLabs Integration
+
+Background indexing runs after media upload; OPFS/IndexedDB persistence is unchanged.
+
+API routes:
+- `GET /api/twelvelabs/index` → returns/creates per-user index (stored in Supabase `user_indexes`)
+- `POST /api/twelvelabs/upload` → creates TwelveLabs task (multipart)
+- `GET /api/twelvelabs/status?task_id=...` → polls TL task
+- `POST /api/twelvelabs/analyze` with `{ action: 'search'|'analyze', ... }`
+
+Errors from TwelveLabs are surfaced with appropriate HTTP statuses.
+
+## Smoke test (local)
+
+1) `docker compose up -d`
+2) Open `http://localhost:3100`
+3) Sign in and create a project
+4) Upload a small video in the media panel
+5) Expect: media appears immediately; background requests:
+   - `GET /api/twelvelabs/index` (first time only)
+   - `POST /api/twelvelabs/upload` (creates TL task)
+   - `GET /api/twelvelabs/status` (polls until ready/failed)
+6) Observe `indexingStatus` updates in the UI and logs
 
 ## Contributing
 

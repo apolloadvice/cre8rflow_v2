@@ -68,3 +68,16 @@ export const exportWaitlist = pgTable("export_waitlist", {
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
 }).enableRLS();
+
+export const userIndexes = pgTable("user_indexes", {
+  id: text("id").primaryKey().$defaultFn(() => /* @__PURE__ */ crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  indexId: text("index_id").notNull(),
+  indexName: text("index_name").notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+}).enableRLS();
