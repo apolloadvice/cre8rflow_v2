@@ -57,6 +57,14 @@ interface MediaStore {
     videoId?: string,
     taskId?: string
   ) => void;
+  updateIndexingStatusWithProject: (
+    projectId: string,
+    mediaId: string,
+    status: IndexingStatus,
+    error?: string,
+    videoId?: string,
+    taskId?: string
+  ) => Promise<void>;
 }
 
 // Helper function to determine file type
@@ -175,6 +183,48 @@ export const getMediaAspectRatio = (item: MediaItem): number => {
   return 16 / 9; // Default aspect ratio
 };
 
+// Helper to restore TwelveLabs status from Supabase
+async function restoreTwelveLabsStatus(
+  projectId: string,
+  mediaItems: MediaItem[]
+): Promise<MediaItem[]> {
+  try {
+    const mediaIds = mediaItems.map((item) => item.id);
+    if (mediaIds.length === 0) return mediaItems;
+
+    // Call our restore API
+    const response = await fetch(`/api/twelvelabs/restore-status?project_id=${projectId}&media_ids=${mediaIds.join(',')}`);
+    
+    if (!response.ok) {
+      console.warn('Failed to restore TwelveLabs status:', response.statusText);
+      return mediaItems;
+    }
+
+    const { restoredStatus } = await response.json();
+
+    // Merge restored status with media items
+    const restoredMediaItems = mediaItems.map((item) => {
+      const restored = restoredStatus[item.id];
+      if (restored) {
+        return {
+          ...item,
+          twelveLabsVideoId: restored.twelveLabsVideoId,
+          twelveLabsTaskId: restored.twelveLabsTaskId,
+          indexingStatus: restored.indexingStatus,
+          indexingError: restored.indexingError,
+        };
+      }
+      return item;
+    });
+
+    console.log(`✅ Restored TwelveLabs status for ${Object.keys(restoredStatus).length} media items`);
+    return restoredMediaItems;
+  } catch (error) {
+    console.error('Failed to restore TwelveLabs status:', error);
+    return mediaItems; // Return original items if restoration fails
+  }
+}
+
 export const useMediaStore = create<MediaStore>((set, get) => ({
   mediaItems: [],
   isLoading: false,
@@ -203,20 +253,22 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         twelveLabsService.startBackgroundIndexing(
           newItem,
           projectId,
-          (status, error, videoId) => {
-            // Update the media item with indexing status
-            get().updateIndexingStatus(
+          (status, error, videoId, taskId) => {
+            // Update the media item with indexing status (persisted to Supabase)
+            get().updateIndexingStatusWithProject(
+              projectId,
               newItem.id,
               status,
               error,
               videoId,
-              // taskId is handled in the service
+              taskId
             );
           }
         ).catch((error) => {
           console.error("Failed to start background indexing:", error);
-          // Update status to failed if indexing couldn't start
-          get().updateIndexingStatus(
+          // Update status to failed if indexing couldn't start (persisted to Supabase)
+          get().updateIndexingStatusWithProject(
+            projectId,
             newItem.id,
             "failed",
             error instanceof Error ? error.message : "Failed to start indexing"
@@ -322,7 +374,10 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         })
       );
 
-      set({ mediaItems: updatedMediaItems });
+      // Restore TwelveLabs status from Supabase
+      const finalMediaItems = await restoreTwelveLabsStatus(projectId, updatedMediaItems);
+
+      set({ mediaItems: finalMediaItems });
     } catch (error) {
       console.error("Failed to load media items:", error);
     } finally {
@@ -389,12 +444,36 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       ),
     }));
 
-    // Also update persistent storage with new indexing info
-    const updatedItem = get().mediaItems.find((item) => item.id === mediaId);
-    if (updatedItem) {
-      // We need the project ID for this - for now, we'll skip persistent storage update
-      // In a real implementation, you might want to pass projectId to this method
-      console.log(`Updated indexing status for ${mediaId}: ${status}`);
+    // Legacy function - just update local state
+    console.log(`Updated indexing status for ${mediaId}: ${status} (local only)`);
+  },
+
+  updateIndexingStatusWithProject: async (projectId, mediaId, status, error, videoId, taskId) => {
+    // Update local state first
+    set((state) => ({
+      mediaItems: state.mediaItems.map((item) =>
+        item.id === mediaId
+          ? {
+              ...item,
+              indexingStatus: status,
+              indexingError: error,
+              ...(videoId && { twelveLabsVideoId: videoId }),
+              ...(taskId && { twelveLabsTaskId: taskId }),
+            }
+          : item
+      ),
+    }));
+
+    // Also update Supabase (in background, don't await to avoid blocking UI)
+    try {
+      const response = await fetch(`/api/twelvelabs/status?task_id=${taskId}&project_id=${projectId}&media_id=${mediaId}`);
+      if (!response.ok) {
+        console.warn('Failed to update TwelveLabs status in Supabase:', response.statusText);
+      } else {
+        console.log(`✅ Updated TwelveLabs status for ${mediaId}: ${status} (persisted)`);
+      }
+    } catch (err) {
+      console.error('Failed to persist TwelveLabs status:', err);
     }
   },
 }));

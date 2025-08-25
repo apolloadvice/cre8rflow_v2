@@ -82,9 +82,12 @@ class TwelveLabsService {
     }
   }
 
-  async getTaskStatus(taskId: string): Promise<TwelveLabsStatusResponse> {
+  async getTaskStatus(taskId: string, projectId?: string, mediaId?: string): Promise<TwelveLabsStatusResponse> {
     try {
-      const response = await fetch(`/api/twelvelabs/status?task_id=${taskId}`);
+      const params = new URLSearchParams({ task_id: taskId });
+      if (projectId) params.set('project_id', projectId);
+      if (mediaId) params.set('media_id', mediaId);
+      const response = await fetch(`/api/twelvelabs/status?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`Failed to get task status: ${response.statusText}`);
@@ -162,7 +165,7 @@ class TwelveLabsService {
   async startBackgroundIndexing(
     mediaItem: MediaItem,
     projectId: string,
-    onStatusUpdate?: (status: IndexingStatus, error?: string, videoId?: string) => void
+    onStatusUpdate?: (status: IndexingStatus, error?: string, videoId?: string, taskId?: string) => void
   ): Promise<void> {
     if (!this.shouldIndexMedia(mediaItem) || !mediaItem.file) {
       return;
@@ -177,16 +180,16 @@ class TwelveLabsService {
 
       // Update the media item with initial indexing info
       if (onStatusUpdate) {
-        onStatusUpdate('uploading');
+        onStatusUpdate('uploading', undefined, uploadResult.videoId, uploadResult.taskId);
       }
 
       // Start polling for status updates
-      this.pollTaskStatus(uploadResult.taskId, uploadResult.videoId, onStatusUpdate);
+      this.pollTaskStatus(uploadResult.taskId, uploadResult.videoId, onStatusUpdate, 10000, projectId, mediaItem.id);
 
     } catch (error) {
       console.error('Failed to start background indexing:', error);
       if (onStatusUpdate) {
-        onStatusUpdate('failed', error instanceof Error ? error.message : 'Unknown error');
+        onStatusUpdate('failed', error instanceof Error ? error.message : 'Unknown error', undefined, undefined);
       }
     }
   }
@@ -195,15 +198,17 @@ class TwelveLabsService {
   private async pollTaskStatus(
     taskId: string,
     videoId: string,
-    onStatusUpdate?: (status: IndexingStatus, error?: string, videoId?: string) => void,
-    pollInterval = 10000 // 10 seconds
+    onStatusUpdate?: (status: IndexingStatus, error?: string, videoId?: string, taskId?: string) => void,
+    pollInterval = 10000, // 10 seconds
+    projectId?: string,
+    mediaId?: string
   ): Promise<void> {
     const poll = async () => {
       try {
-        const statusResult = await this.getTaskStatus(taskId);
+        const statusResult = await this.getTaskStatus(taskId, projectId, mediaId);
         
         if (onStatusUpdate) {
-          onStatusUpdate(statusResult.status, undefined, statusResult.videoId);
+          onStatusUpdate(statusResult.status, undefined, statusResult.videoId, taskId);
         }
 
         // Continue polling if not completed
@@ -213,7 +218,7 @@ class TwelveLabsService {
       } catch (error) {
         console.error('Failed to poll task status:', error);
         if (onStatusUpdate) {
-          onStatusUpdate('failed', error instanceof Error ? error.message : 'Status polling failed');
+          onStatusUpdate('failed', error instanceof Error ? error.message : 'Status polling failed', undefined, taskId);
         }
       }
     };

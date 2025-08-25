@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@opencut/auth';
 import { uploadVideoToIndex, TwelveLabsApiError } from '@/lib/twelvelabs';
+import { saveTwelveLabsMetadata } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 DEBUG: Environment check at startup:');
+    console.log('  - SUPABASE_URL available:', !!process.env.SUPABASE_URL);
+    console.log('  - SUPABASE_SERVICE_KEY available:', !!process.env.SUPABASE_SERVICE_KEY);
+    console.log('  - NODE_ENV:', process.env.NODE_ENV);
+    
     // Temporary bypass for testing - remove when ready for production
     // HARDCODED TO TRUE FOR DEBUGGING - REMOVE LATER
     const bypassAuth = true; // process.env.BYPASS_AUTH_FOR_TESTING === 'true';
+    let userId: string;
     
-    if (!bypassAuth) {
+    if (bypassAuth) {
+      userId = 'test-user-123';
+    } else {
       const session = await auth.api.getSession({
         headers: request.headers,
       });
@@ -16,6 +25,8 @@ export async function POST(request: NextRequest) {
       if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      
+      userId = session.user.id;
     }
 
     const formData = await request.formData();
@@ -61,6 +72,53 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await uploadVideoToIndex(indexId, videoFile, metadata);
+      
+      // Save TwelveLabs metadata to Supabase for persistence (even when bypassing auth)
+      console.log('🔍 DEBUG: About to save TwelveLabs metadata to Supabase');
+      console.log('  - userId:', userId);
+      console.log('  - projectId:', projectId);
+      console.log('  - mediaId:', mediaId);
+      console.log('  - indexId:', indexId);
+      console.log('  - result.videoId:', result.videoId);
+      console.log('  - result.taskId:', result.taskId);
+      console.log('  - filename:', videoFile.name);
+      
+      try {
+        const supabaseResult = await saveTwelveLabsMetadata(userId, projectId, mediaId, {
+          indexId,
+          videoId: result.videoId,
+          taskId: result.taskId,
+          status: 'uploading',
+          filename: videoFile.name,
+        });
+        
+        console.log('✅ Supabase save result:', {
+          data: supabaseResult.data,
+          error: supabaseResult.error,
+          hasData: !!supabaseResult.data,
+          hasError: !!supabaseResult.error
+        });
+        
+        if (supabaseResult.error) {
+          console.error('❌ Supabase returned an error:', supabaseResult.error);
+          // For debugging: Make Supabase errors more visible
+          console.error('❌ CRITICAL: Failed to save TwelveLabs metadata to Supabase');
+          console.error('  - This means the media_twelvelabs table will not be updated');
+          console.error('  - Check RLS policies and environment variables');
+          console.error('  - Error details:', JSON.stringify(supabaseResult.error, null, 2));
+        } else {
+          console.log('✅ Successfully saved TwelveLabs metadata to Supabase');
+        }
+      } catch (supabaseError) {
+        console.error('❌ Exception while saving TwelveLabs metadata to Supabase:');
+        console.error('  - Error type:', typeof supabaseError);
+        console.error('  - Error message:', supabaseError instanceof Error ? supabaseError.message : String(supabaseError));
+        console.error('  - Full error:', supabaseError);
+        console.error('❌ CRITICAL: Supabase save operation failed with exception');
+        console.error('  - This means the media_twelvelabs table will not be updated');
+        console.error('  - Check database connectivity and RLS policies');
+        // Don't fail the upload if Supabase save fails - continue with response
+      }
       
       return NextResponse.json({
         taskId: result.taskId,
